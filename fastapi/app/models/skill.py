@@ -60,7 +60,7 @@ class UserSkill(Base):
         ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
     )
     skill_id: Mapped[int] = mapped_column(
-        ForeignKey("skills.id", ondelete="CASCADE"), nullable=False, index=True
+        ForeignKey("skills.id"), nullable=False, index=True
     )
     level: Mapped[SkillLevel] = mapped_column(
         Enum(SkillLevel), nullable=False, default=SkillLevel.basic

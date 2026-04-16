@@ -1,5 +1,6 @@
-from app.models.skill import Skill
+from app.models.skill import Skill, UserSkill
 from app.schemas.skill import SkillCreate
+from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
@@ -27,8 +28,7 @@ class SkillService:
         return result.scalars().all()
 
     async def delete_skill(self, skill_id: int) -> None:
-        """Удаляет навык по ID. Если навык используется, возвращает ошибку 409."""
-        # Проверяем существование навыка
+        """Удаляет навык по ID. Если навык используется — 409."""
         result = await self.db.execute(select(Skill).where(Skill.id == skill_id))
         skill = result.scalar_one_or_none()
         if not skill:
@@ -37,12 +37,14 @@ class SkillService:
                 detail=f"Skill with id {skill_id} not found",
             )
 
-        await self.db.delete(skill)
-        try:
-            await self.db.commit()
-        except IntegrityError:
-            await self.db.rollback()
+        count = await self.db.scalar(
+            select(func.count()).where(UserSkill.skill_id == skill_id)
+        )
+        if count > 0:
             raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail="Cannot delete skill because it is referenced by user skills",
+                status_code=409,
+                detail="Cannot delete skill because it is used by users",
             )
+
+        await self.db.delete(skill)
+        await self.db.commit()
