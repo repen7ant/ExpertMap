@@ -1,0 +1,23 @@
+# === uv / Virtual Environments ===
+.venv/
+.python-version
+
+# === Python / FastAPI ===
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# === Environment Variables ===
+.env
+.env.*
+!.env.example
+
+# === Distribution / Build ===
+dist/
+build/
+*.egg-info/
+
+

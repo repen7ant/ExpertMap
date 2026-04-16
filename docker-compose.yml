@@ -1,0 +1,50 @@
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: expertmap-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-expertmap}
+      POSTGRES_USER: ${POSTGRES_USER:-expertmap}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-expertmap}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U ${POSTGRES_USER:-expertmap} -d ${POSTGRES_DB:-expertmap}",
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  fastapi:
+    build: ./fastapi
+    container_name: expertmap-fastapi
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./fastapi:/app
+    command: uv run uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    env_file: ./fastapi/.env
+    depends_on:
+      db:
+        condition: service_healthy
+
+  nginx:
+    image: nginx:stable-alpine
+    container_name: expertmap-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx/conf.d:/etc/nginx/conf.d:ro
+    depends_on:
+      - fastapi
+
+volumes:
+  postgres_data:
