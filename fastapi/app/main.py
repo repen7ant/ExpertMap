@@ -5,7 +5,36 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from fastapi import FastAPI
 
-app = FastAPI(title="ExpertMap API")
+description = """
+**ExpertMap API** помогает HR и сотрудникам находить внутренних экспертов.
+
+## Пользователи (Users)
+* Создание профилей сотрудников.
+* Получение полной информации о компетенциях.
+
+## Справочник навыков (Skills)
+* Управление глобальным списком технологий и софт-скиллов.
+
+## Экспертиза (Expertise)
+* Подтверждение навыков (Endorsements).
+* Управление статусами готовности (Speaker/Mentor).
+"""
+
+app = FastAPI(
+    title="ExpertMap API",
+    description=description,
+    openapi_tags=[
+        {"name": "Users", "description": "Профили сотрудников и их личные данные"},
+        {
+            "name": "Skills Dictionary",
+            "description": "Глобальный справочник доступных навыков",
+        },
+        {
+            "name": "Profile & Expertise",
+            "description": "Связи пользователя с навыками и опытом",
+        },
+    ],
+)
 
 app.add_middleware(
     CORSMiddleware,
