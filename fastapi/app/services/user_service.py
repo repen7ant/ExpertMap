@@ -102,6 +102,14 @@ class UserService:
         return experience
 
     async def endorse_skill(self, endorsement_in: EndorsementCreate):
+        """Подтверждение навыка с полной валидацией."""
+        user_skill = await self.db.get(UserSkill, endorsement_in.user_skill_id)
+        if user_skill is None:
+            raise HTTPException(status_code=404, detail="User skill not found")
+
+        if user_skill.user_id != endorsement_in.to_user_id:
+            raise HTTPException(400, "to_user_id must match user_skill owner")
+
         if endorsement_in.from_user_id == endorsement_in.to_user_id:
             raise HTTPException(status_code=400, detail="Self-endorsement not allowed")
 
