@@ -49,9 +49,12 @@ class UserService:
         self.db.add(user_skill)
         try:
             await self.db.commit()
+
             stmt = (
                 select(UserSkill)
-                .options(joinedload(UserSkill.skill))
+                .options(
+                    joinedload(UserSkill.skill), selectinload(UserSkill.endorsements)
+                )
                 .where(UserSkill.id == user_skill.id)
             )
             result = await self.db.execute(stmt)
