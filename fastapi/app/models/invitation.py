@@ -49,10 +49,10 @@ class Invitation(Base):
     # relationships
     hr: Mapped["User"] = relationship(
         foreign_keys=[hr_id], back_populates="invitations_sent"
-    )  # noqa: F821
+    )
     candidate: Mapped["User"] = relationship(
         foreign_keys=[candidate_id], back_populates="invitations_received"
-    )  # noqa: F821
+    )
 
     def __repr__(self) -> str:
         return f"<Invitation id={self.id} candidate={self.candidate_id} role={self.role} status={self.status}>"
