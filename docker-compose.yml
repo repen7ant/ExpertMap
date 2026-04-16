@@ -34,6 +34,19 @@ services:
     depends_on:
       db:
         condition: service_healthy
+      migrations:
+        condition: service_completed_successfully
+
+  migrations:
+    build: ./fastapi
+    container_name: expertmap-migrations
+    volumes:
+      - ./fastapi:/app
+    env_file: ./fastapi/.env
+    depends_on:
+      db:
+        condition: service_healthy
+    command: uv run alembic upgrade head
 
   nginx:
     image: nginx:stable-alpine
