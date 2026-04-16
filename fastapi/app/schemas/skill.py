@@ -1,4 +1,4 @@
-from app.models.skill import SkillLevel
+from app.models.skill import SkillCategory, SkillLevel
 from pydantic import BaseModel, ConfigDict
 
 
@@ -25,3 +25,16 @@ class EndorsementCreate(BaseModel):
     to_user_id: int
     user_skill_id: int
     from_user_id: int
+
+
+class SkillCreate(BaseModel):
+    name: str
+    category: SkillCategory
+
+
+class SkillResponse(BaseModel):
+    id: int
+    name: str
+    category: SkillCategory
+
+    model_config = ConfigDict(from_attributes=True)
