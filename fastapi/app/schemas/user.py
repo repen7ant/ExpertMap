@@ -16,6 +16,7 @@ class UserBase(BaseModel):
 
 class UserCreate(UserBase):
     password: str
+    is_hr: bool = False
 
 
 class UserResponse(UserBase):
