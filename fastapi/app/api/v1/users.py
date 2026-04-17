@@ -1,3 +1,5 @@
+from typing import List
+
 from app.db.session import get_db
 from app.dependencies.auth import get_current_user
 from app.models.user import User
@@ -7,7 +9,7 @@ from app.schemas.user import UserCreate, UserProfileResponse, UserResponse
 from app.services.user_service import UserService
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 
 router = APIRouter()
 
@@ -29,6 +31,22 @@ async def create_user(
     user_in: UserCreate, service: UserService = Depends(get_user_service)
 ):
     return await service.create_user(user_in)
+
+
+@router.get(
+    "/users",
+    tags=["Users"],
+    response_model=List[UserResponse],
+    summary="Получить список всех сотрудников",
+    description="Возвращает краткую информацию о всех зарегистрированных сотрудниках. Доступно любому авторизованному пользователю.",
+)
+async def get_users(
+    limit: int = Query(default=100, ge=1, le=100, description="Количество записей"),
+    offset: int = Query(default=0, ge=0, description="Смещение"),
+    service: UserService = Depends(get_user_service),
+    current_user: User = Depends(get_current_user),
+):
+    return await service.get_users(limit=limit, offset=offset)
 
 
 @router.get(

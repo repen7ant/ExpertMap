@@ -31,6 +31,12 @@ class UserService:
             await self.db.rollback()
             raise HTTPException(status_code=400, detail="Email already registered")
 
+    async def get_users(self, limit: int = 100, offset: int = 0) -> list[User]:
+        """Получение списка всех пользователей с пагинацией."""
+        stmt = select(User).limit(limit).offset(offset)
+        result = await self.db.execute(stmt)
+        return result.scalars().all()
+
     async def get_user_profile(self, user_id: int) -> User:
         stmt = (
             select(User)
