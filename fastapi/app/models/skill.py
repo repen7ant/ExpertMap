@@ -53,7 +53,9 @@ class UserSkill(Base):
     """Навык конкретного сотрудника с уровнем владения."""
 
     __tablename__ = "user_skills"
-    __table_args__ = (UniqueConstraint("user_id", "skill_id", name="uq_user_skill"),)
+    __table_args__ = (
+        UniqueConstraint("user_id", "skill_id", "level", name="uq_user_skill_level"),
+    )
 
     id: Mapped[int] = mapped_column(primary_key=True)
     user_id: Mapped[int] = mapped_column(
