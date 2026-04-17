@@ -1,6 +1,8 @@
 from typing import List
 
 from app.db.session import get_db
+from app.dependencies.auth import get_current_hr_user, get_current_user
+from app.models.user import User
 from app.schemas.skill import SkillCreate, SkillResponse
 from app.services.skill_service import SkillService
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -26,7 +28,9 @@ async def get_skill_service(db: AsyncSession = Depends(get_db)):
     },
 )
 async def create_skill(
-    skill_in: SkillCreate, service: SkillService = Depends(get_skill_service)
+    skill_in: SkillCreate,
+    service: SkillService = Depends(get_skill_service),
+    current_user: User = Depends(get_current_user),
 ):
     return await service.create_skill(skill_in)
 
@@ -37,7 +41,10 @@ async def create_skill(
     summary="Получить список всех навыков",
     description="Возвращает полный список доступных навыков из базы. Используется на фронтенде для отрисовки выпадающих списков при добавлении навыка в профиль.",
 )
-async def list_skills(service: SkillService = Depends(get_skill_service)):
+async def list_skills(
+    service: SkillService = Depends(get_skill_service),
+    current_user: User = Depends(get_current_user),
+):
     return await service.get_all_skills()
 
 
@@ -54,7 +61,9 @@ async def list_skills(service: SkillService = Depends(get_skill_service)):
     },
 )
 async def delete_skill(
-    skill_id: int, service: SkillService = Depends(get_skill_service)
+    skill_id: int,
+    service: SkillService = Depends(get_skill_service),
+    current_hr: User = Depends(get_current_hr_user),
 ):
     await service.delete_skill(skill_id)
     return None

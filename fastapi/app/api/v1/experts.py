@@ -1,6 +1,8 @@
 from app.db.session import get_db
+from app.dependencies.auth import get_current_hr_user, get_current_user
 from app.models.experience import ReadinessType
 from app.models.skill import SkillLevel
+from app.models.user import User
 from app.schemas.invitation import (
     ExpertCard,
     InvitationCreate,
@@ -12,7 +14,7 @@ from app.services.invitation_service import InvitationService
 from app.services.search_service import ExpertSearchService
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 
 router = APIRouter()
 
@@ -40,10 +42,11 @@ async def get_invitation_service(db: AsyncSession = Depends(get_db)):
     """,
 )
 async def search_experts(
+    current_user: User = Depends(get_current_user),
     skills: list[str] | None = Query(
         default=None,
         description="Один или несколько навыков. Поиск по вхождению, без учёта регистра.",
-        example=["Java", "UX Research"],
+        examples=["Java", "UX Research"],
     ),
     level: SkillLevel | None = Query(
         default=None,
@@ -65,6 +68,7 @@ async def search_experts(
     limit: int = Query(default=20, ge=1, le=100),
     offset: int = Query(default=0, ge=0),
     service: ExpertSearchService = Depends(get_search_service),
+    current_hr: User = Depends(get_current_hr_user),
 ):
     experts, total = await service.search_experts(
         skills=skills,
@@ -100,7 +104,10 @@ async def search_experts(
     summary="Покрытие навыков в компании",
     description="Показывает сколько сотрудников владеет каждым навыком и сколько подтверждений он собрал. Помогает HR видеть дефицитные компетенции.",
 )
-async def skills_analytics(service: ExpertSearchService = Depends(get_search_service)):
+async def skills_analytics(
+    service: ExpertSearchService = Depends(get_search_service),
+    current_hr: User = Depends(get_current_hr_user),
+):
     stats = await service.get_skill_stats()
     return [dict(row) for row in stats]
 
@@ -118,8 +125,15 @@ async def skills_analytics(service: ExpertSearchService = Depends(get_search_ser
 )
 async def create_invitation(
     invitation_in: InvitationCreate,
+    current_hr: User = Depends(get_current_hr_user),
     service: InvitationService = Depends(get_invitation_service),
 ):
+    if invitation_in.hr_id != current_hr.id:
+        raise HTTPException(
+            status_code=403, detail="Нельзя отправлять приглашения от чужого имени"
+        )
+    return await service.create_invitation(invitation_in)
+    invitation_in.hr_id = current_hr.id
     return await service.create_invitation(invitation_in)
 
 
@@ -132,8 +146,12 @@ async def create_invitation(
 async def get_invitation(
     invitation_id: int,
     service: InvitationService = Depends(get_invitation_service),
+    current_user: User = Depends(get_current_user),
 ):
-    return await service.get_invitation(invitation_id)
+    invitation = await service.get_invitation(invitation_id)
+    if invitation.candidate_id != current_user.id and not current_user.is_hr:
+        raise HTTPException(status_code=403, detail="Доступ запрещен")
+    return invitation
 
 
 @router.put(
@@ -150,10 +168,12 @@ async def get_invitation(
 async def respond_to_invitation(
     invitation_id: int,
     respond_in: InvitationRespond,
-    candidate_id: int = Query(..., description="ID кандидата, который отвечает"),
     service: InvitationService = Depends(get_invitation_service),
+    current_user: User = Depends(get_current_user),
 ):
-    return await service.respond_to_invitation(invitation_id, respond_in, candidate_id)
+    return await service.respond_to_invitation(
+        invitation_id, respond_in, current_user.id
+    )
 
 
 @router.get(
@@ -170,5 +190,10 @@ async def get_user_invitations(
         description="True — входящие приглашения (кандидат). False — исходящие (HR).",
     ),
     service: InvitationService = Depends(get_invitation_service),
+    current_user: User = Depends(get_current_user),
 ):
+    if current_user.id != user_id and not current_user.is_hr:
+        raise HTTPException(
+            status_code=403, detail="Вы не можете просматривать чужие приглашения"
+        )
     return await service.get_user_invitations(user_id, as_candidate)

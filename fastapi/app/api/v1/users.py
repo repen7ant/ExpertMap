@@ -1,11 +1,13 @@
 from app.db.session import get_db
+from app.dependencies.auth import get_current_user
+from app.models.user import User
 from app.schemas.experience import ExperienceCreate, ExperienceResponse, ReadinessUpdate
 from app.schemas.skill import EndorsementCreate, UserSkillCreate, UserSkillResponse
 from app.schemas.user import UserCreate, UserProfileResponse, UserResponse
 from app.services.user_service import UserService
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, HTTPException, status
 
 router = APIRouter()
 
@@ -44,7 +46,9 @@ async def create_user(
     responses={404: {"description": "Пользователь не найден"}},
 )
 async def get_user_profile(
-    user_id: int, service: UserService = Depends(get_user_service)
+    user_id: int,
+    service: UserService = Depends(get_user_service),
+    current_user: User = Depends(get_current_user),
 ):
     return await service.get_user_profile(user_id)
 
@@ -65,7 +69,12 @@ async def add_skill(
     user_id: int,
     skill_in: UserSkillCreate,
     service: UserService = Depends(get_user_service),
+    current_user: User = Depends(get_current_user),
 ):
+    if current_user.id != user_id and not current_user.is_hr:
+        raise HTTPException(
+            status_code=403, detail="Вы можете редактировать только свой профиль"
+        )
     return await service.add_skill(user_id, skill_in)
 
 
@@ -78,8 +87,13 @@ async def add_skill(
     responses={404: {"description": "Навык не найден в профиле данного пользователя"}},
 )
 async def remove_skill(
-    user_id: int, skill_id: int, service: UserService = Depends(get_user_service)
+    user_id: int,
+    skill_id: int,
+    service: UserService = Depends(get_user_service),
+    current_user: User = Depends(get_current_user),
 ):
+    if current_user.id != user_id and not current_user.is_hr:
+        raise HTTPException(status_code=403, detail="Вы не можете удалять чужие навыки")
     await service.remove_skill(user_id, skill_id)
 
 
@@ -93,7 +107,12 @@ async def update_readiness(
     user_id: int,
     readiness_in: ReadinessUpdate,
     service: UserService = Depends(get_user_service),
+    current_user: User = Depends(get_current_user),
 ):
+    if current_user.id != user_id:
+        raise HTTPException(
+            status_code=403, detail="Вы можете менять только свой статус готовности"
+        )
     await service.update_readiness(user_id, readiness_in)
     return {"status": "success"}
 
@@ -109,7 +128,12 @@ async def add_experience(
     user_id: int,
     exp_in: ExperienceCreate,
     service: UserService = Depends(get_user_service),
+    current_user: User = Depends(get_current_user),
 ):
+    if current_user.id != user_id:
+        raise HTTPException(
+            status_code=403, detail="Вы не можете добавлять опыт в чужой профиль"
+        )
     return await service.add_experience(user_id, exp_in)
 
 
@@ -132,7 +156,12 @@ async def add_experience(
     },
 )
 async def endorse_skill(
-    endorsement_in: EndorsementCreate, service: UserService = Depends(get_user_service)
+    endorsement_in: EndorsementCreate,
+    current_user: User = Depends(get_current_user),
+    service: UserService = Depends(get_user_service),
 ):
-    await service.endorse_skill(endorsement_in)
-    return {"status": "success"}
+    if endorsement_in.from_user_id != current_user.id:
+        raise HTTPException(
+            status_code=403, detail="Вы не можете подтвердить навык от чужого имени"
+        )
+    return await service.endorse_skill(endorsement_in)

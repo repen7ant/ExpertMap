@@ -4,6 +4,7 @@ from app.models.user import User
 from app.schemas.experience import ExperienceCreate, ReadinessUpdate
 from app.schemas.skill import EndorsementCreate, UserSkillCreate
 from app.schemas.user import UserCreate
+from app.services.auth_service import get_password_hash
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
@@ -17,7 +18,10 @@ class UserService:
         self.db = db
 
     async def create_user(self, user_in: UserCreate) -> User:
-        new_user = User(**user_in.model_dump())
+        user_data = user_in.model_dump()
+        hashed_password = get_password_hash(user_data.pop("password"))
+
+        new_user = User(**user_data, hashed_password=hashed_password)
         self.db.add(new_user)
         try:
             await self.db.commit()
