@@ -87,26 +87,43 @@ class UserService:
         return user
 
     async def add_skill(self, user_id: int, skill_in: UserSkillCreate) -> UserSkill:
+        stmt = (
+            select(UserSkill)
+            .options(selectinload(UserSkill.endorsements))
+            .where(
+                UserSkill.user_id == user_id, UserSkill.skill_id == skill_in.skill_id
+            )
+        )
+        result = await self.db.execute(stmt)
+        existing_skills = result.scalars().all()
+
+        for existing in existing_skills:
+            if existing.level == skill_in.level:
+                raise HTTPException(
+                    status_code=400, detail="Навык с таким уровнем уже добавлен"
+                )
+
+            if len(existing.endorsements) == 0:
+                await self.db.delete(existing)
+
         user_skill = UserSkill(user_id=user_id, **skill_in.model_dump())
         self.db.add(user_skill)
+
         try:
             await self.db.commit()
 
-            stmt = (
+            stmt_ret = (
                 select(UserSkill)
                 .options(
                     joinedload(UserSkill.skill), selectinload(UserSkill.endorsements)
                 )
                 .where(UserSkill.id == user_skill.id)
             )
-            result = await self.db.execute(stmt)
-            return result.scalar_one()
+            res = await self.db.execute(stmt_ret)
+            return res.scalar_one()
         except IntegrityError:
             await self.db.rollback()
-            raise HTTPException(
-                status_code=400,
-                detail="Skill error: check if skill exists or already added",
-            )
+            raise HTTPException(status_code=400, detail="Ошибка добавления навыка")
 
     async def remove_skill(self, user_id: int, skill_id: int):
         stmt = select(UserSkill).where(
@@ -144,7 +161,6 @@ class UserService:
         return experience
 
     async def endorse_skill(self, endorsement_in: EndorsementCreate):
-        """Подтверждение навыка с полной валидацией."""
         user_skill = await self.db.get(UserSkill, endorsement_in.user_skill_id)
         if user_skill is None:
             raise HTTPException(status_code=404, detail="User skill not found")
@@ -157,8 +173,24 @@ class UserService:
 
         new_endorsement = Endorsement(**endorsement_in.model_dump())
         self.db.add(new_endorsement)
+
         try:
             await self.db.commit()
+
+            stmt = select(UserSkill).where(
+                UserSkill.user_id == user_skill.user_id,
+                UserSkill.skill_id == user_skill.skill_id,
+                UserSkill.id != user_skill.id,
+            )
+            result = await self.db.execute(stmt)
+            old_skills = result.scalars().all()
+
+            for old_skill in old_skills:
+                await self.db.delete(old_skill)
+
+            if old_skills:
+                await self.db.commit()
+
         except IntegrityError:
             await self.db.rollback()
             raise HTTPException(status_code=400, detail="Already endorsed")
