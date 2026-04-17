@@ -3,7 +3,7 @@ from app.models.skill import Endorsement, UserSkill
 from app.models.user import User
 from app.schemas.experience import ExperienceCreate, ReadinessUpdate
 from app.schemas.skill import EndorsementCreate, UserSkillCreate
-from app.schemas.user import UserCreate
+from app.schemas.user import UserCreate, UserRegister, UserUpdate
 from app.services.auth_service import get_password_hash
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -17,11 +17,43 @@ class UserService:
     def __init__(self, db: AsyncSession):
         self.db = db
 
-    async def create_user(self, user_in: UserCreate) -> User:
+    async def register_user(self, user_in: UserRegister) -> User:
+        """Регистрация обычного сотрудника (is_hr=False)."""
+        hashed_password = get_password_hash(user_in.password)
+        new_user = User(
+            email=user_in.email,
+            hashed_password=hashed_password,
+            is_hr=False,
+        )
+        self.db.add(new_user)
+        try:
+            await self.db.commit()
+            await self.db.refresh(new_user)
+            return new_user
+        except IntegrityError:
+            await self.db.rollback()
+            raise HTTPException(status_code=400, detail="Email already registered")
+
+    async def update_user(self, user_id: int, user_in: UserUpdate) -> User:
+        """Частичное обновление профиля пользователя."""
+        user = await self.db.get(User, user_id)
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+
+        update_data = user_in.model_dump(exclude_unset=True)
+        for field, value in update_data.items():
+            setattr(user, field, value)
+
+        await self.db.commit()
+        await self.db.refresh(user)
+        return user
+
+    async def create_hr_user(self, user_in: UserCreate) -> User:
+        """Создание HR-сотрудника (is_hr=True)."""
         user_data = user_in.model_dump()
         hashed_password = get_password_hash(user_data.pop("password"))
 
-        new_user = User(**user_data, hashed_password=hashed_password)
+        new_user = User(**user_data, hashed_password=hashed_password, is_hr=True)
         self.db.add(new_user)
         try:
             await self.db.commit()

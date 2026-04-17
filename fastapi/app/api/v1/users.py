@@ -1,12 +1,12 @@
 from typing import List
 
 from app.db.session import get_db
-from app.dependencies.auth import get_current_user
+from app.dependencies.auth import get_current_hr_user, get_current_user
 from app.models.user import User
 from app.schemas.experience import ExperienceCreate, ExperienceResponse, ReadinessUpdate
 from app.schemas.skill import EndorsementCreate, UserSkillCreate, UserSkillResponse
 from app.schemas.user import UserCreate, UserProfileResponse, UserResponse
-from app.services.user_service import UserService
+from app.services.user_service import UserService, UserUpdate
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -23,14 +23,37 @@ async def get_user_service(db: AsyncSession = Depends(get_db)):
     tags=["Users"],
     response_model=UserResponse,
     status_code=status.HTTP_201_CREATED,
-    summary="Создать профиль сотрудника",
-    description="Регистрирует нового сотрудника в системе ExpertMap.",
+    summary="Создать HR профиль (Внутренний сервис)",
+    description="Регистрирует нового HR сотрудника. Создать может только другой HR",
     responses={400: {"description": "Email уже зарегистрирован в системе"}},
 )
-async def create_user(
-    user_in: UserCreate, service: UserService = Depends(get_user_service)
+async def create_hr_user(
+    user_in: UserCreate,
+    service: UserService = Depends(get_user_service),
+    current_hr: User = Depends(get_current_hr_user),
 ):
-    return await service.create_user(user_in)
+    return await service.create_hr_user(user_in)
+
+
+@router.patch(
+    "/users/{user_id}",
+    tags=["Users"],
+    response_model=UserResponse,
+    summary="Заполнить/обновить профиль",
+    description="Позволяет обновить от 1 до всех полей профиля сотрудника (department, position, bio).",
+)
+async def update_user_profile(
+    user_id: int,
+    user_in: UserUpdate,
+    service: UserService = Depends(get_user_service),
+    current_user: User = Depends(get_current_user),
+):
+    if current_user.id != user_id and not current_user.is_hr:
+        raise HTTPException(
+            status_code=403, detail="Вы можете редактировать только свой профиль"
+        )
+
+    return await service.update_user(user_id, user_in)
 
 
 @router.get(

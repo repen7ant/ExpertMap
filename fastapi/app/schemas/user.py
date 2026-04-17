@@ -7,7 +7,7 @@ from pydantic import BaseModel, ConfigDict, EmailStr
 
 
 class UserBase(BaseModel):
-    name: str
+    name: Optional[str] = None
     email: EmailStr
     department: Optional[DepartmentEnum] = None
     position: Optional[str] = None
@@ -16,7 +16,18 @@ class UserBase(BaseModel):
 
 class UserCreate(UserBase):
     password: str
-    is_hr: bool = False
+
+
+class UserRegister(BaseModel):
+    email: EmailStr
+    password: str
+
+
+class UserUpdate(BaseModel):
+    name: Optional[str] = None
+    department: Optional[DepartmentEnum] = None
+    position: Optional[str] = None
+    bio: Optional[str] = None
 
 
 class UserResponse(UserBase):
