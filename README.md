@@ -4,6 +4,8 @@
 
 ```bash
 mv .env.example .env
+cd fastapi
+mv .env.example .env
 ```
 
 ## 2. Запустить проект
