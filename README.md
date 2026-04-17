@@ -29,7 +29,7 @@ http://localhost:8000
 Swagger:
 
 ```bash
-http://localhost:8000
+http://localhost:8000/docs#
 ```
 
 Логи бэкенда:
