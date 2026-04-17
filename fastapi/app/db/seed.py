@@ -6,6 +6,7 @@ from app.models.experience import Experience, ExperienceType, Readiness, Readine
 from app.models.invitation import BadgeType, Invitation, InvitationStatus, UserBadge
 from app.models.skill import Endorsement, Skill, SkillCategory, SkillLevel, UserSkill
 from app.models.user import DepartmentEnum, User
+from app.services.auth_service import get_password_hash
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -106,6 +107,7 @@ async def seed_data(db: AsyncSession):
         user = User(
             name=name,
             email=email,
+            hashed_password=get_password_hash("123456"),
             department=dept,
             position=pos,
             is_hr=is_hr,

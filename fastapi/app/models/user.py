@@ -29,6 +29,7 @@ class User(Base):
     email: Mapped[str] = mapped_column(
         String(255), unique=True, nullable=False, index=True
     )
+    hashed_password: Mapped[str] = mapped_column(String(255), nullable=False)
     department: Mapped[DepartmentEnum | None] = mapped_column(
         Enum(DepartmentEnum), nullable=True
     )
